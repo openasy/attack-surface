@@ -2687,9 +2687,8 @@
           "ports",
           "lastScan",
           "scanning",
-          "scanHours",
           "nextScanAt",
-          "certWarnDays"
+          "settings"
         ],
         "properties": {
           "assets": {
@@ -2815,15 +2814,51 @@
           "scanning": {
             "type": "boolean"
           },
-          "scanHours": {
-            "type": "integer"
-          },
           "nextScanAt": {
             "type": "string",
             "format": "date-time"
           },
-          "certWarnDays": {
-            "type": "integer"
+          "settings": {
+            "type": "object",
+            "required": [
+              "scanHours",
+              "ratePerSecond",
+              "ports",
+              "certificateTransparency",
+              "allowPrivate",
+              "certWarnDays"
+            ],
+            "properties": {
+              "scanHours": {
+                "type": "integer"
+              },
+              "ratePerSecond": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "certificateTransparency": {
+                "type": "boolean"
+              },
+              "allowPrivate": {
+                "type": "boolean"
+              },
+              "certWarnDays": {
+                "type": "integer"
+              }
+            },
+            "description": "How scans run, set in the environment (ATTACK_SURFACE_*)."
           }
         }
       }

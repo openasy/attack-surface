@@ -70,6 +70,7 @@ const surface = createSurface(db, {
   ports,
   allowPrivate,
   scanHours,
+  ratePerSecond: rate,
   certDays: certDays(process.env.OPENASY_CERT_WARN_DAYS),
 });
 surface.recover();

@@ -156,7 +156,7 @@ export function exposures(snap: Snapshot, now: number, days: CertDays = certDays
           ...base,
           rule: "tls-expiring",
           severity: left <= days.critical ? "high" : "medium",
-          title: `Certificate expires in ${Math.ceil(left)} days`,
+          title: `Certificate expires in ${Math.ceil(left)} day${Math.ceil(left) === 1 ? "" : "s"}`,
           detail: `${cert}, valid until ${s.tls.notAfter.slice(0, 10)}.`,
         });
       if (!s.tls.nameMatches)

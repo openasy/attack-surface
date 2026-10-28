@@ -259,9 +259,18 @@ const schemas: Record<string, S> = {
     ports: arr(obj({ port: int, service: str, count: int })),
     lastScan: nul(ref("Scan")),
     scanning: bool,
-    scanHours: int,
     nextScanAt: dt,
-    certWarnDays: int,
+    settings: {
+      ...obj({
+        scanHours: int,
+        ratePerSecond: nul(int),
+        ports: arr(int),
+        certificateTransparency: bool,
+        allowPrivate: bool,
+        certWarnDays: int,
+      }),
+      description: "How scans run, set in the environment (ATTACK_SURFACE_*).",
+    },
   }),
 };
 

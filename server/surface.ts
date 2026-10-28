@@ -36,6 +36,8 @@ export interface SurfaceOptions {
   /** Only tests set it; see scope.ts. */
   allowLoopback?: boolean;
   scanHours?: number;
+  /** ATTACK_SURFACE_RATE, for the Scans page; the limiter is what holds to it. */
+  ratePerSecond?: number;
   certDays?: CertDays;
   maxNames?: number;
   clock?: () => number;
@@ -499,7 +501,7 @@ export function createSurface(db: DatabaseSync, options: SurfaceOptions) {
               asset: s.asset,
               port: s.port,
               severity: left <= 0 ? "critical" : left <= days.critical ? "high" : "medium",
-              what: left <= 0 ? "Certificate expired" : `Certificate expires in ${left} days`,
+              what: left <= 0 ? "Certificate expired" : `Certificate expires in ${left} day${left === 1 ? "" : "s"}`,
               after: s.tls.notAfter.slice(0, 10),
             });
           }
@@ -799,9 +801,16 @@ export function createSurface(db: DatabaseSync, options: SurfaceOptions) {
       ports: ports.map((p) => ({ port: p.port, service: p.service, count: p.n })),
       lastScan: last,
       scanning: running !== null,
-      scanHours,
       nextScanAt: new Date(last ? Date.parse(last.startedAt) + scanHours * 3_600_000 : clock()).toISOString(),
-      certWarnDays: days.warn,
+      // How scans run, from the environment: shown, not changed, on the Scans page.
+      settings: {
+        scanHours,
+        ratePerSecond: options.ratePerSecond ?? null,
+        ports: options.ports,
+        certificateTransparency: options.ct !== null,
+        allowPrivate,
+        certWarnDays: days.warn,
+      },
     };
   }
 
