@@ -1,0 +1,41 @@
+# Attack Surface. It finds what the organisation exposes to the internet from the domains it has proven are its own,
+# with a TXT record, and the address ranges an admin added with a reason: subdomains from DNS and certificate
+# transparency, a light connect check of common ports, certificates and HTTP headers. Nothing outside those roots is
+# ever probed (ADR 0067).
+#
+#   openssl rand -hex 32 > openasy-kek   # Attack Surface's key for sign-in secrets (ADR 0021). Keep it with your backups
+#   docker compose up -d
+#   docker compose logs attack-surface | grep 'no owner yet'   # the one-time link that creates the owner account
+services:
+  attack-surface:
+    image: ghcr.io/openasy/attack-surface:0.1.0
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    ports:
+      - "127.0.0.1:8080:8080" # UI and API; put a TLS proxy in front to reach it from elsewhere
+    volumes:
+      - attack-surface-data:/data # SQLite database: domains, ranges, scans and what they found
+    secrets:
+      - openasy-kek # mounted at /run/secrets/openasy-kek
+    environment:
+      # The address people open Attack Surface at; with a TLS proxy in front, its https:// URL.
+      ATTACK_SURFACE_PUBLIC_URL: ${ATTACK_SURFACE_PUBLIC_URL:-http://localhost:8080}
+      # How often the verified domains and ranges are scanned, and how many connections a second a scan makes.
+      ATTACK_SURFACE_SCAN_HOURS: ${ATTACK_SURFACE_SCAN_HOURS:-24}
+      ATTACK_SURFACE_RATE: ${ATTACK_SURFACE_RATE:-10}
+      # When certificates warn, shared with Certificates and Uptime (ADR 0052).
+      # OPENASY_CERT_WARN_DAYS: 30,14,7,1
+      # Sign in with your identity provider (OIDC), see the README:
+      # OPENASY_OIDC_ISSUER: https://login.example.com
+      # OPENASY_OIDC_CLIENT_ID: attack-surface
+      # OPENASY_OIDC_CLIENT_SECRET: ${OPENASY_OIDC_CLIENT_SECRET}
+
+volumes:
+  attack-surface-data:
+
+secrets:
+  openasy-kek:
+    file: ./openasy-kek

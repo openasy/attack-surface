@@ -1,0 +1,2832 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "OpenAsy Attack Surface API",
+    "version": "0.1.0",
+    "summary": "What your organisation exposes to the internet, from the domains you have proven are yours, and what changed since the last scan.",
+    "description": "Every screen of Attack Surface uses this API, and so can your scripts (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nEvery operation takes the session of a signed-in person or an API token, and names the role it needs (`x-openasy-role`: viewer, editor, admin; ADR 0003). Only verified domains and ranges an admin added are ever probed: names found outside them are listed and left alone (ADR 0067).\n\nSign-in, members and API tokens are under `/api/v1/auth`, provided by [@openasy/auth](https://github.com/openasy/auth#routes).",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This Attack Surface"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Roots",
+      "description": "Domains proven by a TXT record, and ranges an admin added: all that is ever scanned."
+    },
+    {
+      "name": "Scans",
+      "description": "Discovery from DNS and certificate transparency, then a light check of each host."
+    },
+    {
+      "name": "Findings",
+      "description": "Assets, their open ports, exposures and certificates, as of the last scan."
+    },
+    {
+      "name": "Changes",
+      "description": "What appeared, went or changed since the scan before."
+    },
+    {
+      "name": "Product",
+      "description": "Version, overview and audit log of this Attack Surface."
+    }
+  ],
+  "paths": {
+    "/api/v1/domains": {
+      "get": {
+        "operationId": "listDomains",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Domains",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "post": {
+        "operationId": "createDomain",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Add a domain",
+        "description": "Needs the editor role. It is pending until its TXT record is found; nothing under it is touched before.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewDomain"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added, with the record to publish.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor"
+      }
+    },
+    "/api/v1/domains/{id}": {
+      "get": {
+        "operationId": "getDomain",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "A domain",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The domain's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "delete": {
+        "operationId": "deleteDomain",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Delete a domain",
+        "description": "Needs the admin role. What was found under it goes too; its changes stay as history.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The domain's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin"
+      }
+    },
+    "/api/v1/domains/{id}/verify": {
+      "post": {
+        "operationId": "verifyDomain",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Look for the TXT record now",
+        "description": "Needs the editor role. Every scan looks again first, and stops scanning a domain whose record has gone.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The domain's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domain, verified or with why not.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Domain"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor"
+      }
+    },
+    "/api/v1/ranges": {
+      "get": {
+        "operationId": "listRanges",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Address ranges",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RangeList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "post": {
+        "operationId": "createRange",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Add an address range",
+        "description": "Needs the admin role. With a reason, kept in the audit log. Private addresses are refused unless the install allows them; loopback, link-local and multicast ones always are.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Range"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin"
+      }
+    },
+    "/api/v1/ranges/{id}": {
+      "delete": {
+        "operationId": "deleteRange",
+        "tags": [
+          "Roots"
+        ],
+        "summary": "Delete an address range",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The range's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin",
+        "description": "Needs the admin role."
+      }
+    },
+    "/api/v1/scans": {
+      "get": {
+        "operationId": "listScans",
+        "tags": [
+          "Scans"
+        ],
+        "summary": "The last 50 scans",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      },
+      "post": {
+        "operationId": "startScan",
+        "tags": [
+          "Scans"
+        ],
+        "summary": "Scan now",
+        "description": "Needs the editor role. It runs in the background; 409 while another one runs.",
+        "responses": {
+          "202": {
+            "description": "Started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor"
+      }
+    },
+    "/api/v1/scans/{id}": {
+      "get": {
+        "operationId": "getScan",
+        "tags": [
+          "Scans"
+        ],
+        "summary": "A scan",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The scan's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Scan"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "operationId": "listAssets",
+        "tags": [
+          "Findings"
+        ],
+        "summary": "Assets",
+        "description": "Needs the viewer role. Host names and addresses that answer, with their open ports.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "present",
+                "gone",
+                "all"
+              ],
+              "default": "present"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Part of the name or address.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/assets/{key}": {
+      "get": {
+        "operationId": "getAsset",
+        "tags": [
+          "Findings"
+        ],
+        "summary": "An asset",
+        "description": "Needs the viewer role. With its services, exposures and changes.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "description": "The host name or address.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/outside": {
+      "get": {
+        "operationId": "listOutside",
+        "tags": [
+          "Findings"
+        ],
+        "summary": "Names outside the verified domains",
+        "description": "Needs the viewer role. Seen on a certificate, as a CNAME target, a mail or name server. Never probed.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutsideList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/exposures": {
+      "get": {
+        "operationId": "listExposures",
+        "tags": [
+          "Findings"
+        ],
+        "summary": "Exposures",
+        "description": "Needs the viewer role. The worst first.",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "resolved",
+                "all"
+              ],
+              "default": "open"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low",
+                "info"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExposureList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/certificates": {
+      "get": {
+        "operationId": "listCertificates",
+        "tags": [
+          "Findings"
+        ],
+        "summary": "Certificates presented",
+        "description": "Needs the viewer role. Each once, with where it was seen, the soonest to end first.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/changes": {
+      "get": {
+        "operationId": "listChanges",
+        "tags": [
+          "Changes"
+        ],
+        "summary": "Changes",
+        "description": "Needs the viewer role. The newest first, at most 2000.",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "How far back, 1 to 400 days.",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          },
+          {
+            "name": "scan",
+            "in": "query",
+            "description": "Only those of one scan.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/changes/{id}/acknowledge": {
+      "post": {
+        "operationId": "acknowledgeChange",
+        "tags": [
+          "Changes"
+        ],
+        "summary": "Acknowledge a change",
+        "description": "Needs the editor role. Says someone has looked at it; a second time keeps the first.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The change's id.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Change"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "editor"
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "listAudit",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Audit log",
+        "description": "Needs the admin role. Domains and ranges added, verified, lost and deleted, and scans started, the newest 500. Append-only.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "admin"
+      }
+    },
+    "/api/v1/summary": {
+      "get": {
+        "operationId": "getSummary",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Overview",
+        "description": "Needs the viewer role. Counts for the first screen.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer"
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "listProducts",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Other products of this install",
+        "responses": {
+          "200": {
+            "description": "From OPENASY_PRODUCTS, for the product switcher.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductList"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          },
+          {
+            "adminToken": []
+          }
+        ],
+        "x-openasy-role": "viewer",
+        "description": "Needs the viewer role."
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "operationId": "getVersion",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Version",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The running version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "liveness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Liveness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The process is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readiness",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Readiness",
+        "description": "Ready while its SQLite file answers.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Ready to serve.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics",
+        "tags": [
+          "Product"
+        ],
+        "summary": "Prometheus metrics",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Metrics in the Prometheus text format.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Host-openasy-session",
+        "description": "The browser session after signing in (`openasy-session` when Attack Surface runs on plain http://localhost). Requests that change something must come from the Attack Surface origin."
+      },
+      "apiToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token created under Settings → API tokens (`oa_attack-surface_...`): one role, always an expiry (ADR 0003)."
+      },
+      "adminToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Only when Attack Surface is started by its tests or a local script: one shared token with the admin role. A production install does not have it."
+      }
+    },
+    "responses": {
+      "Problem": {
+        "description": "An error, as RFC 9457 Problem Details.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid-token",
+              "invalid-json",
+              "invalid-body",
+              "conflict",
+              "not-found",
+              "internal-error",
+              "unauthenticated",
+              "invalid-credentials",
+              "mfa-required",
+              "mfa-setup-required",
+              "forbidden",
+              "cross-site",
+              "rate-limited"
+            ],
+            "description": "Stable; match on this."
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "required": [
+          "product",
+          "version"
+        ],
+        "properties": {
+          "product": {
+            "const": "attack-surface"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductLink": {
+        "type": "object",
+        "required": [
+          "id",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The product, as OpenAsy names it.",
+            "examples": [
+              "dast"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The address people open it at.",
+            "examples": [
+              "https://dast.example.com"
+            ]
+          }
+        }
+      },
+      "ProductList": {
+        "type": "object",
+        "required": [
+          "products"
+        ],
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductLink"
+            }
+          }
+        }
+      },
+      "DomainRecords": {
+        "type": "object",
+        "required": [
+          "a",
+          "aaaa",
+          "mx",
+          "ns",
+          "spf",
+          "dmarc",
+          "caa"
+        ],
+        "properties": {
+          "a": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "aaaa": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mx": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "spf": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dmarc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caa": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Domain": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state",
+          "proof",
+          "createdAt",
+          "createdBy",
+          "verifiedAt",
+          "checkedAt",
+          "error",
+          "records",
+          "assets"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "example.com"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "verified",
+              "lost"
+            ],
+            "description": "Only a verified domain is scanned. lost: it was verified, and its record was gone at the last check."
+          },
+          "proof": {
+            "type": "object",
+            "required": [
+              "name",
+              "type",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "examples": [
+                  "_openasy-attack-surface.example.com"
+                ]
+              },
+              "type": {
+                "const": "TXT"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "description": "The TXT record the domain's owner publishes to prove it."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Why the last check did not find the record."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "records": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DomainRecords"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assets": {
+            "type": "integer",
+            "description": "Assets found under it."
+          }
+        }
+      },
+      "DomainList": {
+        "type": "object",
+        "required": [
+          "domains"
+        ],
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Domain"
+            }
+          }
+        }
+      },
+      "NewDomain": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "examples": [
+              "example.com"
+            ]
+          }
+        }
+      },
+      "Range": {
+        "type": "object",
+        "required": [
+          "id",
+          "cidr",
+          "addresses",
+          "reason",
+          "createdAt",
+          "createdBy",
+          "assets"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cidr": {
+            "type": "string",
+            "examples": [
+              "203.0.113.0/28"
+            ]
+          },
+          "addresses": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "assets": {
+            "type": "integer"
+          }
+        }
+      },
+      "RangeList": {
+        "type": "object",
+        "required": [
+          "ranges"
+        ],
+        "properties": {
+          "ranges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Range"
+            }
+          }
+        }
+      },
+      "NewRange": {
+        "type": "object",
+        "required": [
+          "cidr",
+          "reason"
+        ],
+        "properties": {
+          "cidr": {
+            "type": "string",
+            "description": "An address or a range in CIDR notation, at most 256 addresses (a /24 or a /120).",
+            "examples": [
+              "203.0.113.0/28"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 500,
+            "description": "Why the addresses are the organisation's. Kept in the audit log."
+          }
+        }
+      },
+      "Scan": {
+        "type": "object",
+        "required": [
+          "id",
+          "startedAt",
+          "finishedAt",
+          "trigger",
+          "startedBy",
+          "state",
+          "error",
+          "roots",
+          "assets",
+          "services",
+          "exposures",
+          "changes",
+          "probes",
+          "warnings"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trigger": {
+            "type": "string",
+            "enum": [
+              "schedule",
+              "manual"
+            ]
+          },
+          "startedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "failed"
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The verified domains and ranges it scanned."
+          },
+          "assets": {
+            "type": "integer"
+          },
+          "services": {
+            "type": "integer"
+          },
+          "exposures": {
+            "type": "integer"
+          },
+          "changes": {
+            "type": "integer"
+          },
+          "probes": {
+            "type": "integer",
+            "description": "Connections made."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ScanList": {
+        "type": "object",
+        "required": [
+          "scans"
+        ],
+        "properties": {
+          "scans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scan"
+            }
+          }
+        }
+      },
+      "Tls": {
+        "type": "object",
+        "required": [
+          "fingerprint",
+          "subject",
+          "issuer",
+          "sans",
+          "notBefore",
+          "notAfter",
+          "keyType",
+          "keyBits",
+          "protocol",
+          "trusted",
+          "trustError",
+          "nameMatches",
+          "selfSigned"
+        ],
+        "properties": {
+          "fingerprint": {
+            "type": "string",
+            "description": "SHA-256 of the certificate, hex."
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sans": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notBefore": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notAfter": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "keyType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "keyBits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "examples": [
+                  "TLSv1.3"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trusted": {
+            "type": "boolean",
+            "description": "Whether the system's roots trust the chain."
+          },
+          "trustError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nameMatches": {
+            "type": "boolean",
+            "description": "Whether the certificate is for the name connected to."
+          },
+          "selfSigned": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Http": {
+        "type": "object",
+        "required": [
+          "status",
+          "headers",
+          "title",
+          "login"
+        ],
+        "properties": {
+          "status": {
+            "type": "integer"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The headers the checks read, lower case: server, location, content-type and the security headers."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "login": {
+            "type": "boolean",
+            "description": "The page has a password field."
+          }
+        }
+      },
+      "Service": {
+        "type": "object",
+        "required": [
+          "port",
+          "service",
+          "address",
+          "banner",
+          "tls",
+          "legacyTls",
+          "http",
+          "firstSeen",
+          "lastSeen",
+          "goneAt"
+        ],
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "service": {
+            "type": "string",
+            "description": "What usually answers on the port; not fingerprinted."
+          },
+          "address": {
+            "type": "string"
+          },
+          "banner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "What the server sent first, unasked."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tls": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Tls"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "legacyTls": {
+            "anyOf": [
+              {
+                "type": "boolean",
+                "description": "TLS 1.0 or 1.1 is still taken."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "http": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Http"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "goneAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Asset": {
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "root",
+          "addresses",
+          "cname",
+          "sources",
+          "probed",
+          "note",
+          "firstSeen",
+          "lastSeen",
+          "goneAt",
+          "ports",
+          "exposures",
+          "worst"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "The host name, or the address for one found in a range."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "name",
+              "address"
+            ]
+          },
+          "root": {
+            "type": "string",
+            "description": "The verified domain or the range it is under."
+          },
+          "addresses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cname": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "dns",
+                "certificate",
+                "mx",
+                "ns",
+                "range"
+              ]
+            }
+          },
+          "probed": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "The address its ports were probed at."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Why it was not probed."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "goneAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "exposures": {
+            "type": "integer"
+          },
+          "worst": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "AssetList": {
+        "type": "object",
+        "required": [
+          "assets"
+        ],
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          }
+        }
+      },
+      "AssetDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Asset"
+          },
+          {
+            "type": "object",
+            "required": [
+              "services",
+              "exposureList",
+              "changes"
+            ],
+            "properties": {
+              "services": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Service"
+                }
+              },
+              "exposureList": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Exposure"
+                }
+              },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Change"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Exposure": {
+        "type": "object",
+        "required": [
+          "id",
+          "rule",
+          "severity",
+          "title",
+          "detail",
+          "asset",
+          "root",
+          "port",
+          "firstSeen",
+          "lastSeen",
+          "resolvedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The same exposure across scans: its rule, asset and port."
+          },
+          "rule": {
+            "type": "string",
+            "examples": [
+              "database-exposed"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "asset": {
+            "type": "string"
+          },
+          "root": {
+            "type": "string"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ExposureList": {
+        "type": "object",
+        "required": [
+          "exposures"
+        ],
+        "properties": {
+          "exposures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Exposure"
+            }
+          }
+        }
+      },
+      "Certificate": {
+        "type": "object",
+        "required": [
+          "fingerprint",
+          "subject",
+          "issuer",
+          "sans",
+          "notBefore",
+          "notAfter",
+          "daysLeft",
+          "state",
+          "trusted",
+          "trustError",
+          "selfSigned",
+          "keyType",
+          "keyBits",
+          "protocols",
+          "legacyTls",
+          "places"
+        ],
+        "properties": {
+          "fingerprint": {
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sans": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notBefore": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notAfter": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "daysLeft": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "expired",
+              "critical",
+              "expiring",
+              "valid"
+            ]
+          },
+          "trusted": {
+            "type": "boolean"
+          },
+          "trustError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selfSigned": {
+            "type": "boolean"
+          },
+          "keyType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "keyBits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "protocols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "legacyTls": {
+            "type": "boolean"
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "asset",
+                "port",
+                "nameMatches"
+              ],
+              "properties": {
+                "asset": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "integer"
+                },
+                "nameMatches": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CertificateList": {
+        "type": "object",
+        "required": [
+          "certificates"
+        ],
+        "properties": {
+          "certificates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Certificate"
+            }
+          }
+        }
+      },
+      "Outside": {
+        "type": "object",
+        "required": [
+          "name",
+          "seenAs",
+          "via",
+          "root",
+          "firstSeen",
+          "lastSeen"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "seenAs": {
+            "type": "string",
+            "enum": [
+              "certificate",
+              "cname",
+              "mx",
+              "ns"
+            ]
+          },
+          "via": {
+            "type": "string",
+            "description": "The verified domain or name it was seen with."
+          },
+          "root": {
+            "type": "string"
+          },
+          "firstSeen": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeen": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OutsideList": {
+        "type": "object",
+        "required": [
+          "names"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Outside"
+            }
+          }
+        }
+      },
+      "Change": {
+        "type": "object",
+        "required": [
+          "id",
+          "scanId",
+          "at",
+          "kind",
+          "subject",
+          "asset",
+          "port",
+          "severity",
+          "what",
+          "before",
+          "after",
+          "acknowledgedAt",
+          "acknowledgedBy"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "scanId": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "added",
+              "removed",
+              "changed"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "service",
+              "exposure",
+              "certificate"
+            ]
+          },
+          "asset": {
+            "type": "string"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                  "info"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "what": {
+            "type": "string"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgedBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "ChangeList": {
+        "type": "object",
+        "required": [
+          "changes"
+        ],
+        "properties": {
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            }
+          }
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "actor",
+          "action",
+          "target",
+          "detail"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditList": {
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            }
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "assets",
+          "newAssets",
+          "services",
+          "exposures",
+          "certificates",
+          "unacknowledged",
+          "outside",
+          "domains",
+          "ranges",
+          "ports",
+          "lastScan",
+          "scanning",
+          "scanHours",
+          "nextScanAt",
+          "certWarnDays"
+        ],
+        "properties": {
+          "assets": {
+            "type": "integer"
+          },
+          "newAssets": {
+            "type": "integer",
+            "description": "Assets first seen in the last 7 days."
+          },
+          "services": {
+            "type": "integer"
+          },
+          "exposures": {
+            "type": "object",
+            "required": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "info",
+              "total"
+            ],
+            "properties": {
+              "critical": {
+                "type": "integer"
+              },
+              "high": {
+                "type": "integer"
+              },
+              "medium": {
+                "type": "integer"
+              },
+              "low": {
+                "type": "integer"
+              },
+              "info": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              }
+            }
+          },
+          "certificates": {
+            "type": "object",
+            "required": [
+              "total",
+              "expiring",
+              "expired"
+            ],
+            "properties": {
+              "total": {
+                "type": "integer"
+              },
+              "expiring": {
+                "type": "integer"
+              },
+              "expired": {
+                "type": "integer"
+              }
+            }
+          },
+          "unacknowledged": {
+            "type": "integer"
+          },
+          "outside": {
+            "type": "integer"
+          },
+          "domains": {
+            "type": "object",
+            "required": [
+              "verified",
+              "pending",
+              "lost"
+            ],
+            "properties": {
+              "verified": {
+                "type": "integer"
+              },
+              "pending": {
+                "type": "integer"
+              },
+              "lost": {
+                "type": "integer"
+              }
+            }
+          },
+          "ranges": {
+            "type": "integer"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "port",
+                "service",
+                "count"
+              ],
+              "properties": {
+                "port": {
+                  "type": "integer"
+                },
+                "service": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "lastScan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Scan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scanning": {
+            "type": "boolean"
+          },
+          "scanHours": {
+            "type": "integer"
+          },
+          "nextScanAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "certWarnDays": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
