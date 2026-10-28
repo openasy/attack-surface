@@ -56,11 +56,11 @@ describe("a scan of servers on this machine", () => {
         ports: [web, redis],
       },
     );
+    // Services come by name, then port; both ports are random, so either may be lower.
+    const ports = [web, redis].sort((a, b) => a - b);
     expect(snap.services.map((s) => [s.asset, s.port])).toEqual([
-      ["ci.example.com", web],
-      ["ci.example.com", redis],
-      ["example.com", web],
-      ["example.com", redis],
+      ...ports.map((port) => ["ci.example.com", port]),
+      ...ports.map((port) => ["example.com", port]),
     ]);
     // An unknown port is only connected to; a name outside the domain is never looked up for addresses, let alone probed.
     expect(p.targets.every((t) => /^(ci\.)?example\.com@127\.0\.0\.1:/.test(t))).toBe(true);
