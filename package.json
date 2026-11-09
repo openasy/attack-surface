@@ -1,6 +1,6 @@
 {
   "name": "@openasy/attack-surface",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "OpenAsy Attack Surface: what your organisation exposes to the internet, found from the domains you have proven are yours, and what changed since the last scan.",
   "license": "AGPL-3.0-only",

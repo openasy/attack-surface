@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "OpenAsy Attack Surface API",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "summary": "What your organisation exposes to the internet, from the domains you have proven are yours, and what changed since the last scan.",
     "description": "Every screen of Attack Surface uses this API, and so can your scripts (ADR 0014). Within `/api/v1` changes are additive only; anything removed is deprecated first (ADR 0024). Errors use Problem Details (RFC 9457).\n\nEvery operation takes the session of a signed-in person or an API token, and names the role it needs (`x-openasy-role`: viewer, editor, admin; ADR 0003). Only verified domains and ranges an admin added are ever probed: names found outside them are listed and left alone (ADR 0067).\n\nSign-in, members and API tokens are under `/api/v1/auth`, provided by [@openasy/auth](https://github.com/openasy/auth#routes).",
     "license": {
